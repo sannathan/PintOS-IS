@@ -15,7 +15,6 @@
 #include "userprog/process.h"
 #endif
 
-
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -24,6 +23,9 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+//lista dos processos que estão dormindo
+static struct list sleep_list;
+
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -92,6 +94,7 @@ thread_init (void)
 
   lock_init (&tid_lock);
   list_init (&ready_list);
+  list_init (&sleep_list);
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -313,6 +316,42 @@ thread_yield (void)
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
+}
+//não terminada!!
+void thread_sleep(int64_t ticks){
+  struct thread *cur = thread_current();
+  enum intr_level old_level;
+
+  ASSERT (!intr_context());
+
+  old_level = intr_disable();
+  //cur->time_to_wakeup = ticks;
+  if(cur != idle_thread){
+    cur->time_to_wakeup = ticks;
+    list_push_back(&sleep_list, &cur->elem);
+    
+  }
+  cur->status = THREAD_BLOCKED;
+  schedule();
+  intr_set_level (old_level);
+
+}
+
+void thread_wakeup(void){
+  struct list_elem *e = list_begin(&sleep_list);
+  if(list_empty(&sleep_list)){
+      return;
+  }
+  while (e != list_end(&sleep_list)){
+      struct thread *t = list_entry(e, struct thread, elem);
+      if(t->time_to_wakeup > timer_ticks())
+        break;
+      enum intr_level old_level = intr_disable();
+      e = list_remove(e);
+      thread_unblock(t);
+      intr_set_level(old_level);
+  }
+  
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
