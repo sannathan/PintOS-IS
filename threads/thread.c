@@ -319,17 +319,16 @@ thread_yield (void)
 }
 //não terminada!!
 void thread_sleep(int64_t ticks){
-  struct thread *cur = thread_current();
-  enum intr_level old_level;
+  struct thread *cur = thread_current(); //retorna a thread atualmente em execucao e armazena em cur
+  enum intr_level old_level; //Variavel que vai armazenar o estado anterior
 
-  ASSERT (!intr_context());
+  ASSERT (!intr_context()); //Garante que nao esta sendo chamada em contexto de interrupcao
 
-  old_level = intr_disable();
+  old_level = intr_disable(); //Desabilita as interrupcoes e salva o estado anterior na variavel old_level
   //cur->time_to_wakeup = ticks;
   if(cur != idle_thread){
     cur->time_to_wakeup = ticks;
     list_insert_ordered(&sleep_list, &cur->elem, time_to_wakeup_comparator, NULL);
-    
   }
   cur->status = THREAD_BLOCKED;
   schedule();
@@ -387,17 +386,33 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int new_nice) 
 {
-  /* Not yet implemented. */
+  struct thread *cur = thread_current();
+  cur->nice = new_nice;
+
+  //recalcula a prioridade
+  int new_priority = PRI_MAX - (cur->recent_cpu / 4) - (cur->nice * 2);
+  if(new_priority > PRI_MAX){
+    new_priority = PRI_MAX;
+  }
+  if(new_priority < PRI_MIN){
+    new_priority = PRI_MIN;
+  }
+  thread_set_priority(new_priority);
+
+  //Se a nova prioridade for menor que a prioridade do primeiro da lista de prontos, yield
+  if(!list_empty(&ready_list) && cur->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority){
+    thread_yield();
+  }
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  struct thread *cur = thread_current();
+  return cur->nice;
 }
 
 /* Returns 100 times the system load average. */
@@ -627,4 +642,4 @@ bool time_to_wakeup_comparator(const struct list_elem *a, const struct list_elem
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
-uint32_t thread_stack_ofs = offsetof (struct thread, stack);2
+uint32_t thread_stack_ofs = offsetof (struct thread, stack);
