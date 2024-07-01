@@ -57,6 +57,7 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
+static int load_avg; //Valor de load_avg
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -97,6 +98,7 @@ thread_init (void)
   list_init (&sleep_list);
   list_init (&all_list);
 
+  load_avg = 0;
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -383,6 +385,32 @@ thread_get_priority (void)
 {
   return thread_current ()->priority;
 }
+void thread_calculate_recent_cpu(struct thread *t){
+  if( t != idle_thread) {
+    int load_avg = thread_get_load_avg();
+    t->recent_cpu = ((2 * load_avg) / (2 * load_avg + 1)) * t->recent_cpu + t->nice;
+  }
+}
+
+void calculate_load_avg() {
+  int ready_threads = list_size(&ready_list);
+  if(thread_current() != idle_thread){
+    ready_threads++;
+  }
+  
+  load_avg = ((59 * load_avg) / 60) + ((ready_threads) / 60);
+
+}
+
+int thread_get_recent_cpu(){
+  struct thread *cur = thread_current();
+  return cur->recent_cpu * 100;
+}
+
+int thread_get_load_avg(){
+  return load_avg * 100;
+}
+
 
 /* Sets the current thread's nice value to NICE. */
 void
@@ -392,21 +420,26 @@ thread_set_nice (int new_nice)
   cur->nice = new_nice;
 
   //recalcula a prioridade
-  int new_priority = PRI_MAX - (cur->recent_cpu / 4) - (cur->nice * 2);
-  if(new_priority > PRI_MAX){
-    new_priority = PRI_MAX;
-  }
-  if(new_priority < PRI_MIN){
-    new_priority = PRI_MIN;
-  }
-  thread_set_priority(new_priority);
+  thread_calculate_priority(cur);
 
   //Se a nova prioridade for menor que a prioridade do primeiro da lista de prontos, yield
   if(!list_empty(&ready_list) && cur->priority < list_entry(list_front(&ready_list), struct thread, elem)->priority){
     thread_yield();
   }
 }
-
+/*Calcula a prioridade apos o new_nice*/
+void thread_calculate_priority(struct thread *t){
+  if (t != idle_thread){
+    int new_priority = PRI_MAX - (t->recent_cpu / 4) - (t->nice * 2);
+    if(new_priority > PRI_MAX){
+      new_priority = PRI_MAX;
+    }
+    if(new_priority < PRI_MIN){
+      new_priority = PRI_MIN;
+    }
+    t->priority = new_priority;
+  }
+}
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
