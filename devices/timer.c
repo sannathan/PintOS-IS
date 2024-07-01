@@ -92,10 +92,16 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
+  if(ticks <= 0){
+    return;
+  }
+  thread_sleep(start + ticks);
+  /*
   if(timer_elapsed(start) < ticks){
     thread_sleep((start + ticks));// implementar a função
 
   }
+  */
   //while (timer_elapsed (start) < ticks) 
     //thread_yield ();
 }
@@ -175,8 +181,9 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
   thread_wakeup();
+  thread_tick ();
+  //thread_wakeup();
   /*
   if(thread_mlfqs){
     increase_recent_cpu(thread_current());

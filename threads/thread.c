@@ -61,7 +61,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
-
+bool time_to_wakeup_comparator(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -328,7 +328,7 @@ void thread_sleep(int64_t ticks){
   //cur->time_to_wakeup = ticks;
   if(cur != idle_thread){
     cur->time_to_wakeup = ticks;
-    list_push_back(&sleep_list, &cur->elem);
+    list_insert_ordered(&sleep_list, &cur->elem, time_to_wakeup_comparator, NULL);
     
   }
   cur->status = THREAD_BLOCKED;
@@ -349,7 +349,7 @@ void thread_wakeup(void){
       enum intr_level old_level = intr_disable();
       e = list_remove(e);
       thread_unblock(t);
-      intr_set_level(old_level);
+      //intr_set_level(old_level);
   }
   
 }
@@ -618,7 +618,13 @@ allocate_tid (void)
 
   return tid;
 }
+bool time_to_wakeup_comparator(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+  const struct thread *t_a = list_entry(a, struct thread, elem);
+  const struct thread *t_b = list_entry(b, struct thread, elem);
+  return t_a->time_to_wakeup < t_b->time_to_wakeup;
+}
+
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
-uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+uint32_t thread_stack_ofs = offsetof (struct thread, stack);2
