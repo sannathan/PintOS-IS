@@ -85,7 +85,6 @@ struct thread
     /* Owned by thread.c. */
     int nice; /* Valor de "nice" da thread. vai de -20 ate 20*/
     int recent_cpu; /* Valor de recent_cpu da thread*/
-    int priority; /*Prioridade da thread variando de 0 ate 63*/
     int64_t time_to_wakeup;                  //time to the thrads wakup
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
