@@ -181,14 +181,21 @@ void thread_tick(void)
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return();
 
+  struct thread *cur = thread_current();
+  if(cur != idle_thread){
+    cur->recent_cpu++;
+  }
+
   if (timer_ticks() % 100 == 0)
   {
     calculate_load_avg();
   }
 
   if(timer_ticks() % 4 == 0){
-    thread_foreach(thread_calculate_priority, NULL);
+    thread_foreach(&thread_calculate_priority, NULL);
   }
+
+  thread_wakeup();
 }
 
 /* Prints thread statistics. */
@@ -438,7 +445,6 @@ void thread_calculate_recent_cpu(struct thread *t)
 {
   if (t != idle_thread)
   {
-    load_avg = thread_get_load_avg();
     t->recent_cpu = MUL_FP(DIV_FP_INT(load_avg * 2, load_avg * 2 + 1), t->recent_cpu) + INT_TO_FP(t->nice);
   }
 }
@@ -452,7 +458,7 @@ void calculate_load_avg()
   }
   load_avg = ADD_FP(DIV_FP(MUL_FP(INT_TO_FP(59), load_avg), INT_TO_FP(60)), DIV_FP(INT_TO_FP(ready_threads), INT_TO_FP(60)));
   
-  thread_foreach(thread_calculate_recent_cpu, NULL);
+  thread_foreach(&thread_calculate_recent_cpu, NULL);
 }
 
 /* Sets the current thread's nice value to NICE. */
