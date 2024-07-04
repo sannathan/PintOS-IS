@@ -15,6 +15,8 @@
 #include "userprog/process.h"
 #endif
 
+typedef int64_t float_type;
+
 #define F (1 << 14)
 
 // Converte inteiro para ponto fixo.
@@ -91,7 +93,7 @@ static long long user_ticks;   /* # of timer ticks in user programs. */
 #define TIME_SLICE 4          /* # of timer ticks to give each thread. */
 static unsigned thread_ticks; /* # of timer ticks since last yield. */
 
-static int load_avg; /*Numero de threads prontos para execucao no ultimo minuto*/
+float_type load_avg; /*Numero de threads prontos para execucao no ultimo minuto*/
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -99,7 +101,9 @@ static int load_avg; /*Numero de threads prontos para execucao no ultimo minuto*
 bool thread_mlfqs;
 bool time_to_wakeup_comparator(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 static void kernel_thread(thread_func *, void *aux);
-
+static void thread_calculate_recent_cpu(struct thread *t);
+static void calculate_load_avg();
+static void thread_calculate_priority(struct thread *t);
 static void idle(void *aux UNUSED);
 static struct thread *running_thread(void);
 static struct thread *next_thread_to_run(void);
@@ -134,6 +138,7 @@ void thread_init(void)
   list_init(&all_list);
 
   /* Set up a thread structure for the running thread. */
+  load_avg = INT_TO_FP(0);
   initial_thread = running_thread();
   init_thread(initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
@@ -175,6 +180,15 @@ void thread_tick(void)
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return();
+
+  if (timer_ticks() % 100 == 0)
+  {
+    calculate_load_avg();
+  }
+
+  if(timer_ticks() % 4 == 0){
+    thread_foreach(thread_calculate_priority, NULL);
+  }
 }
 
 /* Prints thread statistics. */
@@ -424,9 +438,8 @@ void thread_calculate_recent_cpu(struct thread *t)
 {
   if (t != idle_thread)
   {
-    int load_avg = thread_get_load_avg();
+    load_avg = thread_get_load_avg();
     t->recent_cpu = MUL_FP(DIV_FP_INT(load_avg * 2, load_avg * 2 + 1), t->recent_cpu) + INT_TO_FP(t->nice);
-    // t->recent_cpu = ((2 * load_avg) / (2 * load_avg + 1)) * t->recent_cpu + t->nice;
   }
 }
 
@@ -438,7 +451,8 @@ void calculate_load_avg()
     ready_threads++;
   }
   load_avg = ADD_FP(DIV_FP(MUL_FP(INT_TO_FP(59), load_avg), INT_TO_FP(60)), DIV_FP(INT_TO_FP(ready_threads), INT_TO_FP(60)));
-  // load_avg = ((59 * load_avg) / 60) + ((ready_threads) / 60);
+  
+  thread_foreach(thread_calculate_recent_cpu, NULL);
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -469,7 +483,7 @@ void thread_calculate_priority(struct thread *t)
 {
   if (t != idle_thread)
   {
-    int new_priority = PRI_MAX - FP_TO_INT(DIV_FP_INT(t->recent_cpu, 4)) - (t->nice * 2);
+    int new_priority = PRI_MAX - (t->recent_cpu / 4) - (t->nice * 2);
     if (new_priority > PRI_MAX)
     {
       new_priority = PRI_MAX;
@@ -484,14 +498,14 @@ void thread_calculate_priority(struct thread *t)
 /* Returns 100 times the system load average. */
 int thread_get_load_avg(void)
 {
-  return FLOAT_ROUND(FLOAT_MULT_MIX(load_avg, 100));
+  return FP_TO_INT(MUL_FP_INT(load_avg, 100));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int thread_get_recent_cpu(void)
 {
   struct thread *cur = thread_current();
-  return cur->recent_cpu * 100;
+  return FP_TO_INT(MUL_FP_INT(cur->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -575,12 +589,22 @@ init_thread(struct thread *t, const char *name, int priority)
   ASSERT(PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT(name != NULL);
 
-  load_avg = FP_CONST(0);
   memset(t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
   strlcpy(t->name, name, sizeof t->name);
   t->stack = (uint8_t *)t + PGSIZE;
-  t->priority = priority;
+
+  if(t == initial_thread){
+    t->recent_cpu = 0;
+    t->nice = 0;
+    t->priority = priority;
+  }
+  else{
+    t->recent_cpu = thread_current()->recent_cpu;
+    t->nice = thread_current()->nice;
+    thread_calculate_priority(t);
+  }
+
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable();

@@ -17,6 +17,7 @@ enum thread_status
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
+typedef int64_t float_type; //tipo de dado para o recent_cpu
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
 /* Thread priorities. */
@@ -84,7 +85,7 @@ struct thread
   {
     /* Owned by thread.c. */
     int nice; /* Valor de "nice" da thread. vai de -20 ate 20*/
-    int recent_cpu; /* Valor de recent_cpu da thread*/
+    float_type recent_cpu; /* Valor de recent_cpu da thread*/
     int64_t time_to_wakeup;                  //time to the thrads wakup
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */

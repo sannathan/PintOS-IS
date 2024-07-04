@@ -88,7 +88,6 @@ int main(void)
 
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
-  load_avg = 0;
   thread_init();
   console_init();
 

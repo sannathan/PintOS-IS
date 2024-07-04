@@ -164,13 +164,9 @@ static void
 timer_interrupt(struct intr_frame *args UNUSED)
 {
   ticks++;
+  struct thread *cur = thread_current();
+  cur->recent_cpu++;
   thread_tick();
-
-  if (timer_ticks() % TIMER_FREQ == 0)
-  {
-    calculate_load_avg();
-  }
-
   thread_wakeup();
 }
 
