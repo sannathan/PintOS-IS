@@ -17,7 +17,6 @@ enum thread_status
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
-typedef int64_t float_type; //tipo de dado para o recent_cpu
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
 
 /* Thread priorities. */
@@ -81,12 +80,13 @@ typedef int64_t float_type; //tipo de dado para o recent_cpu
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+
 struct thread
   {
     /* Owned by thread.c. */
     int nice; /* Valor de "nice" da thread. vai de -20 ate 20*/
-    float_type recent_cpu; /* Valor de recent_cpu da thread*/
-    int64_t time_to_wakeup;                  //time to the thrads wakup
+    int recent_cpu; /* Valor de recent_cpu da thread*/
+    int64_t time_to_wakeup;                  //tempo para que a thread acorde
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
@@ -109,6 +109,9 @@ struct thread
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
+   /* List of processes in THREAD_READY state, that is, processes
+   that are ready to run but not actually running. */
+
 extern bool thread_mlfqs;
 
 void thread_init (void);
@@ -143,6 +146,8 @@ void thread_set_priority (int);
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
-int thread_get_load_avg (void);
+int thread_get_load_avg (void); 
+void check_yield(void);
+
 
 #endif /* threads/thread.h */

@@ -86,14 +86,15 @@ timer_elapsed(int64_t then)
    be turned on. */
 void timer_sleep(int64_t ticks)
 {
-  int64_t start = timer_ticks();
+  int64_t start = timer_ticks(); // Armazena o número de ticks atual
 
-  ASSERT(intr_get_level() == INTR_ON);
-  if (ticks <= 0)
+  ASSERT(intr_get_level() == INTR_ON); // Confere se a interrupção está ligada
+  if (ticks <= 0)                      // Verifica se o número de ticks é menor ou igual a zero, a funcao retorna
   {
     return;
   }
-  thread_sleep(start + ticks);
+
+  thread_sleep(start + ticks); // Chama a função que fará a thread dormir
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -163,8 +164,9 @@ void timer_print_stats(void)
 static void
 timer_interrupt(struct intr_frame *args UNUSED)
 {
-  ticks++;
-  thread_tick();
+  ticks++;         // adiciona tempo
+  thread_tick();   //  verifica o tempo que a thread tá dormindo, calcula o load_avg e recent_cpu e atualiza as prioridades
+  thread_wakeup(); // Chama a função que fará a thread acordar
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -237,4 +239,3 @@ real_time_delay(int64_t num, int32_t denom)
   ASSERT(denom % 1000 == 0);
   busy_wait(loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 }
-// aaa
